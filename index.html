@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>篮球计分器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        :root {
+            --bg: #ffffff;
+            --bg-card: #f6f8fa;
+            --bg-card-alt: #f0f2f5;
+            --bg-card-hover: #eef0f3;
+            --accent-red: #cf222e;
+            --accent-red-light: rgba(207,34,46,0.08);
+            --accent-red-dark: #a40e26;
+            --accent-blue: #0969da;
+            --accent-blue-light: rgba(9,105,218,0.08);
+            --accent-blue-dark: #0550ae;
+            --accent-green: #1a7f37;
+            --accent-green-light: rgba(26,127,55,0.08);
+            --accent-amber: #9a6700;
+            --accent-purple: #8250df;
+            --text-primary: #1f2328;
+            --text-secondary: #656d76;
+            --text-muted: #8b949e;
+            --border: #d1d9e0;
+            --border-hover: #afb8c1;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.1);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --glow-red: 0 0 20px rgba(207,34,46,0.1);
+            --glow-blue: 0 0 20px rgba(9,105,218,0.1);
+            --glow-green: 0 0 20px rgba(26,127,55,0.1);
+        }
+
+        html { height: 100%; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            min-height: 100%;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ========== 背景氛围 ========== */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(9,105,218,0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(207,34,46,0.03) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ========== 模式选择页 ========== */
+        .mode-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hidden { display: none !important; }
+
+        .mode-title {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 3rem;
+            letter-spacing: 8px;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            text-shadow: 0 0 30px rgba(88,166,255,0.15);
+            text-align: center;
+        }
+
+        .mode-subtitle {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-bottom: 40px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .mode-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+            max-width: 380px;
+        }
+
+        .mode-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            opacity: 0;
+            transition: opacity 0.25s;
+        }
+
+        .mode-card:hover {
+            border-color: var(--border-hover);
+            background: var(--bg-card-hover);
+        }
+
+        .mode-card:active {
+            transform: scale(0.98);
+            border-color: var(--accent-blue);
+        }
+
+        .mode-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .mode-card-icon.official {
+            background: linear-gradient(135deg, var(--accent-red), var(--accent-red-dark));
+            box-shadow: 0 4px 16px rgba(255,123,114,0.25);
+        }
+
+        .mode-card-icon.scoring {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-blue-dark));
+            box-shadow: 0 4px 16px rgba(88,166,255,0.25);
+        }
+
+        .mode-card-icon svg { width: 24px; height: 24px; }
+
+        .mode-card-info h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 3px;
+            color: var(--text-primary);
+        }
+
+        .mode-card-info p {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* ========== 弹窗通用 ========== */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.3);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .modal-sheet {
+            background: var(--bg-card);
+            border-radius: 16px 16px 0 0;
+            border: 1px solid var(--border);
+            border-bottom: none;
+            width: 100%;
+            max-width: 480px;
+            padding: 24px 24px 36px;
+            transform: translateY(100%);
+            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        .modal-overlay.active .modal-sheet { transform: translateY(0); }
+
+        .modal-handle {
+            width: 36px; height: 4px;
+            background: var(--text-muted);
+            border-radius: 2px;
+            margin: 0 auto 20px;
+            opacity: 0.5;
+        }
+
+        .modal-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 24px;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        .form-group { margin-bottom: 20px; }
+
+        .form-label {
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: block;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 1.1rem;
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            letter-spacing: 2px;
+            text-align: center;
+            color: var(--text-primary);
+            background: var(--bg);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus { border-color: var(--accent-blue); }
+
+        .form-hint {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        .modal-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        .modal-btn.primary {
+            background: var(--accent-blue);
+            color: white;
+            box-shadow: 0 4px 16px rgba(88,166,255,0.25);
+        }
+
+        .modal-btn.primary:hover { background: var(--accent-blue-dark); }
+        .modal-btn.primary:active { transform: scale(0.98); }
+
+        .modal-btn.secondary {
+            background: var(--bg-card-alt);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .modal-btn.secondary:hover { border-color: var(--border-hover); }
+
+        /* ========== 比赛页面 ========== */
+        .game-page {
+            min-height: 100vh;
+            padding-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+
+
+        /* 顶部栏 */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .top-bar-back {
+            width: 36px; height: 36px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .top-bar-back:hover { border-color: var(--border-hover); color: var(--text-primary); }
+        .top-bar-back svg { width: 18px; height: 18px; }
+
+        .top-bar-center {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .top-bar-ball { width: 22px; height: 22px; }
+        .top-bar-ball svg { width: 100%; height: 100%; }
+
+        .top-bar-title {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .top-bar-mode {
+            font-size: 0.68rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .top-bar-mode.official {
+            background: var(--accent-red-light);
+            color: var(--accent-red);
+            border: 1px solid rgba(255,123,114,0.2);
+        }
+
+        .top-bar-mode.scoring {
+            background: var(--accent-blue-light);
+            color: var(--accent-blue);
+            border: 1px solid rgba(88,166,255,0.2);
+        }
+
+        /* ========== 计时器区域 ========== */
+        .timer-area {
+            background: var(--bg-card);
+            margin: 12px;
+            border-radius: var(--radius);
+            padding: 20px;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .timer-area::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-red));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .timer-running .timer-area::before,
+        .timer-area.timer-running::before { opacity: 1; }
+
+        .timer-main {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 18px;
+        }
+
+        .timer-big {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 4.2rem;
+            letter-spacing: 4px;
+            color: var(--text-primary);
+            line-height: 1;
+            min-width: 180px;
+            text-align: center;
+        }
+
+        .timer-running .timer-big {
+            color: var(--accent-blue);
+            text-shadow: 0 0 30px rgba(88,166,255,0.2);
+        }
+
+        /* 进攻时间 */
+        .shot-clock-box {
+            text-align: center;
+            background: var(--accent-green-light);
+            border-radius: 10px;
+            padding: 8px 14px;
+            border: 1px solid rgba(63,185,80,0.15);
+        }
+
+        .shot-clock-label {
+            font-size: 0.58rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 2px;
+        }
+
+        .shot-clock-num {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 2.4rem;
+            color: var(--accent-green);
+            line-height: 1;
+        }
+
+        .shot-clock-num.warning { color: var(--accent-amber); text-shadow: 0 0 15px rgba(210,153,34,0.3); }
+        .shot-clock-num.danger { color: var(--accent-red); text-shadow: 0 0 15px rgba(255,123,114,0.3); }
+
+        .timer-btns {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .timer-btn {
+            flex: 1;
+            max-width: 120px;
+            padding: 12px 8px;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+            letter-spacing: 0.5px;
+        }
+
+        .timer-btn:active { transform: scale(0.96); }
+
+        .timer-btn.start {
+            background: var(--accent-green);
+            color: #ffffff;
+            box-shadow: 0 3px 12px rgba(63,185,80,0.25);
+        }
+
+        .timer-btn.start:hover { box-shadow: 0 3px 20px rgba(63,185,80,0.35); }
+
+        .timer-btn.pause {
+            background: var(--accent-blue);
+            color: #ffffff;
+            box-shadow: 0 3px 12px rgba(88,166,255,0.25);
+        }
+
+        .timer-btn.reset {
+            background: var(--bg-card-alt);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .timer-btn.reset:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+        .period-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border);
+        }
+
+        .period-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin: 12px;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .period-label {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+        }
+
+        .period-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .period-btn {
+            width: 32px; height: 32px;
+            border: 1px solid var(--border);
+            background: var(--bg-card-alt);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            transition: all 0.15s;
+        }
+
+        .period-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+        .period-btn:active { background: var(--border); }
+
+        .period-val {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 1.5rem;
+            min-width: 24px;
+            text-align: center;
+            color: var(--accent-blue);
+        }
+
+        .target-score-info {
+            text-align: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+        }
+
+        .target-score-info span {
+            font-size: 0.75rem;
+            color: var(--accent-amber);
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        /* ========== 比分区域 ========== */
+        .score-area {
+            display: flex;
+            margin: 0 12px;
+            gap: 8px;
+        }
+
+        .score-panel {
+            flex: 1;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 16px 12px 12px;
+            border: 1px solid var(--border);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.25s;
+        }
+
+        .score-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+        }
+
+        .score-panel.home::before { background: linear-gradient(90deg, var(--accent-red), var(--accent-red-dark)); }
+        .score-panel.away::before { background: linear-gradient(90deg, var(--accent-blue), var(--accent-blue-dark)); }
+
+        .score-panel.home:hover { border-color: rgba(255,123,114,0.2); }
+        .score-panel.away:hover { border-color: rgba(88,166,255,0.2); }
+
+        .team-input {
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 1.3rem;
+            letter-spacing: 2px;
+            text-align: center;
+            color: var(--text-primary);
+            padding: 4px 0;
+            outline: none;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 10px;
+        }
+
+        .score-panel.home .team-input:focus { border-color: var(--accent-red); }
+        .score-panel.away .team-input:focus { border-color: var(--accent-blue); }
+
+        .score-num {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 4.5rem;
+            line-height: 1;
+            margin-bottom: 14px;
+        }
+
+        .score-panel.home .score-num { color: var(--accent-red); text-shadow: var(--glow-red); }
+        .score-panel.away .score-num { color: var(--accent-blue); text-shadow: var(--glow-blue); }
+
+        .score-btns {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+
+        .s-btn {
+            padding: 12px 4px;
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 1.15rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .s-btn:active { transform: scale(0.94); }
+
+        .score-panel.home .s-btn {
+            background: var(--accent-red-light);
+            color: var(--accent-red);
+            border-color: rgba(255,123,114,0.12);
+        }
+
+        .score-panel.home .s-btn:hover { background: rgba(255,123,114,0.18); border-color: rgba(255,123,114,0.25); }
+
+        .score-panel.home .s-btn:active {
+            background: var(--accent-red);
+            color: #ffffff;
+        }
+
+        .score-panel.away .s-btn {
+            background: var(--accent-blue-light);
+            color: var(--accent-blue);
+            border-color: rgba(88,166,255,0.12);
+        }
+
+        .score-panel.away .s-btn:hover { background: rgba(88,166,255,0.18); border-color: rgba(88,166,255,0.25); }
+
+        .score-panel.away .s-btn:active {
+            background: var(--accent-blue);
+            color: #ffffff;
+        }
+
+        .s-btn.minus { opacity: 0.5; font-size: 0.95rem; }
+
+        /* ========== 队伍统计 ========== */
+        .team-stats {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .team-stat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--bg);
+            padding: 8px 4px;
+        }
+
+        .team-stat-label {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .team-stat-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .team-stat-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .team-stat-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+        .team-stat-btn:active { transform: scale(0.9); }
+
+        .score-panel.home .team-stat-btn:active {
+            background: var(--accent-red-light);
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .score-panel.away .team-stat-btn:active {
+            background: var(--accent-blue-light);
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .team-stat-count {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 1.3rem;
+            color: var(--text-primary);
+            min-width: 18px;
+            text-align: center;
+        }
+
+        /* ========== 总比分 ========== */
+        .total-score {
+            margin: 0 12px 8px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .total-score-label {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
+        }
+
+        .total-score-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .total-score-team {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .total-score-num {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 2rem;
+            line-height: 1;
+            min-width: 36px;
+        }
+
+        #tsHomeScore { color: var(--accent-red); }
+        #tsAwayScore { color: var(--accent-blue); }
+
+        .total-score-vs {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 1.4rem;
+            color: var(--text-muted);
+            line-height: 1;
+        }
+
+        /* ========== 底部操作栏 ========== */
+        .bottom-bar {
+            display: flex;
+            gap: 8px;
+            margin: 12px;
+            padding: 0 4px;
+        }
+
+        .bottom-btn {
+            flex: 1;
+            padding: 14px 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.15s;
+            letter-spacing: 0.3px;
+        }
+
+        .bottom-btn:hover { border-color: var(--border-hover); color: var(--text-primary); }
+
+        .bottom-btn:active {
+            background: var(--bg-card-alt);
+            transform: scale(0.97);
+        }
+
+        .bottom-btn.danger:active {
+            background: var(--accent-red-light);
+            color: var(--accent-red);
+            border-color: rgba(255,123,114,0.3);
+        }
+
+        /* ========== 得分记录 ========== */
+        .history-area {
+            margin: 0 12px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+
+        .history-head {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .history-head svg {
+            width: 14px; height: 14px;
+            fill: var(--accent-blue);
+        }
+
+        .history-scroll {
+            max-height: 140px;
+            overflow-y: auto;
+        }
+
+        .history-scroll::-webkit-scrollbar { width: 4px; }
+        .history-scroll::-webkit-scrollbar-track { background: transparent; }
+        .history-scroll::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+
+        .h-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .h-item:last-child { border-bottom: none; }
+        .h-item:hover { color: var(--text-primary); }
+
+        .h-time {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            color: var(--accent-blue);
+            font-size: 0.88rem;
+            letter-spacing: 1px;
+        }
+
+        .h-empty {
+            opacity: 0.3;
+            text-align: center;
+            padding: 12px;
+            font-size: 0.8rem;
+        }
+
+        /* ========== 节结束弹窗 ========== */
+        .period-end-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.35);
+            backdrop-filter: blur(8px);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .period-end-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .period-end-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            padding: 32px 28px;
+            width: 90%;
+            max-width: 340px;
+            text-align: center;
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        .period-end-overlay.active .period-end-card { transform: scale(1); }
+
+        .period-end-icon {
+            width: 64px; height: 64px;
+            margin: 0 auto 16px;
+        }
+
+        .period-end-icon svg {
+            width: 100%; height: 100%;
+            filter: drop-shadow(0 4px 16px rgba(255,123,114,0.2));
+        }
+
+        .period-end-title {
+            font-size: 1.2rem;
+            font-weight: 900;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .period-end-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .period-end-scores {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 24px;
+        }
+
+        .period-end-team { text-align: center; }
+
+        .period-end-team-name {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .period-end-team-score {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 2.8rem;
+            line-height: 1;
+        }
+
+        .period-end-team-score.red { color: var(--accent-red); text-shadow: var(--glow-red); }
+        .period-end-team-score.blue { color: var(--accent-blue); text-shadow: var(--glow-blue); }
+
+        .period-end-vs {
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            font-size: 1rem;
+            color: var(--text-muted);
+            align-self: center;
+        }
+
+        .period-end-btns { display: flex; gap: 10px; }
+        .period-end-btns .modal-btn { margin-top: 0; }
+
+        /* ========== 动画 ========== */
+        @keyframes scorePop {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.12); }
+            100% { transform: scale(1); }
+        }
+
+        .score-pop { animation: scorePop 0.25s ease; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .timer-running .timer-big { animation: pulse 1s ease infinite; }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .game-page > * {
+            animation: fadeInUp 0.4s ease both;
+        }
+        .game-page > *:nth-child(2) { animation-delay: 0.05s; }
+        .game-page > *:nth-child(3) { animation-delay: 0.1s; }
+        .game-page > *:nth-child(4) { animation-delay: 0.15s; }
+        .game-page > *:nth-child(5) { animation-delay: 0.2s; }
+        .game-page > *:nth-child(6) { animation-delay: 0.25s; }
+
+        /* ========== 响应式 ========== */
+        @media (max-width: 600px) {
+            .mode-title { font-size: 2.4rem; letter-spacing: 5px; }
+            .timer-big { font-size: 3.4rem; }
+            .score-num { font-size: 3.6rem; }
+            .score-area { gap: 6px; }
+            .score-panel { padding: 12px 8px 10px; }
+            .s-btn { padding: 10px 4px; font-size: 1rem; }
+        }
+
+        /* ========== 安全区域 ========== */
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            .bottom-bar { padding-bottom: calc(0 + env(safe-area-inset-bottom)); }
+            .modal-sheet { padding-bottom: calc(36px + env(safe-area-inset-bottom)); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ==================== 模式选择页 ==================== -->
+<div class="mode-page" id="modePage">
+    <div class="mode-title">世纪男篮<br>计分器</div>
+    <div class="mode-subtitle">选择比赛模式</div>
+    <div class="mode-cards">
+        <div class="mode-card" onclick="selectMode('official')">
+            <div class="mode-card-icon official">
+                <svg viewBox="0 0 24 24" fill="white"><path d="M3.63 3.63a.996.996 0 0 0-1.41 0L.71 5.15a.996.996 0 0 0 0 1.41l3.54 3.54a.996.996 0 0 0 1.41 0l1.52-1.52a.996.996 0 0 0 0-1.41L3.63 3.63zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+            </div>
+            <div class="mode-card-info">
+                <h3>正式比赛</h3>
+                <p>按正规篮球规则，每节12分钟倒计时，共四节</p>
+            </div>
+        </div>
+        <div class="mode-card" onclick="selectMode('scoring')">
+            <div class="mode-card-icon scoring">
+                <svg viewBox="0 0 24 24" fill="white"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm0 4v2h6V7H5zm8 0v2h6V7h-6zM5 11v2h6v-2H5zm8 0v2h6v-2h-6zM5 15v2h6v-2H5zm8 0v2h6v-2h-6z"/></svg>
+            </div>
+            <div class="mode-card-info">
+                <h3>记分比赛</h3>
+                <p>每节打到指定分数结束，共四节，适合休闲比赛</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 比赛页面 ==================== -->
+<div class="game-page hidden" id="gamePage">
+    <!-- 顶部栏 -->
+    <div class="top-bar">
+        <button class="top-bar-back" onclick="goBack()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <div class="top-bar-center">
+            <div class="top-bar-ball">
+                <svg viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="88" fill="url(#ballGrad)"/>
+                    <path d="M100 12 L100 188" stroke="#4a2800" stroke-width="2.8" opacity="0.5" stroke-linecap="round"/>
+                    <path d="M12 100 L188 100" stroke="#4a2800" stroke-width="2.8" opacity="0.5" stroke-linecap="round"/>
+                    <path d="M28 100 Q28 38 100 38 Q172 38 172 100" fill="none" stroke="#4a2800" stroke-width="2.8" opacity="0.5" stroke-linecap="round"/>
+                    <path d="M28 100 Q28 162 100 162 Q172 162 172 100" fill="none" stroke="#4a2800" stroke-width="2.8" opacity="0.5" stroke-linecap="round"/>
+                    <ellipse cx="72" cy="62" rx="22" ry="16" fill="white" opacity="0.15"/>
+                </svg>
+            </div>
+            <div class="top-bar-title">篮球计分器</div>
+        </div>
+        <span class="top-bar-mode" id="topBarMode">正式比赛</span>
+    </div>
+
+    <!-- 计时器（仅正式比赛显示） -->
+    <div class="timer-area hidden" id="timerArea">
+        <div class="timer-main">
+            <div class="timer-big" id="timerDisplay">12:00</div>
+            <div class="shot-clock-box">
+                <div class="shot-clock-label">进攻</div>
+                <div class="shot-clock-num" id="shotClockDisplay">24</div>
+            </div>
+        </div>
+        <div class="timer-btns">
+            <button class="timer-btn start" id="btnStart" onclick="startTimer()">开始</button>
+            <button class="timer-btn pause" id="btnPause" onclick="pauseTimer()">暂停</button>
+            <button class="timer-btn reset" onclick="resetTimer()">重置</button>
+        </div>
+    </div>
+
+    <!-- 节次控制 -->
+    <div class="period-area" id="periodArea">
+        <span class="period-label">节次</span>
+        <div class="period-controls">
+            <button class="period-btn" onclick="changePeriod(-1)">-</button>
+            <span class="period-val" id="periodDisplay">1</span>
+            <button class="period-btn" onclick="changePeriod(1)">+</button>
+        </div>
+    </div>
+
+    <!-- 总比分（仅记分比赛模式显示） -->
+    <div class="total-score hidden" id="totalScoreArea">
+        <div class="total-score-label">总比分</div>
+        <div class="total-score-row">
+            <div class="total-score-team" id="tsHomeName">主队</div>
+            <div class="total-score-num" id="tsHomeScore">0</div>
+            <div class="total-score-vs">:</div>
+            <div class="total-score-num" id="tsAwayScore">0</div>
+            <div class="total-score-team" id="tsAwayName">客队</div>
+        </div>
+    </div>
+
+    <!-- 比分 -->
+    <div class="score-area">
+        <div class="score-panel home">
+            <input type="text" class="team-input" id="homeName" value="主队" placeholder="队名">
+            <div class="score-num" id="homeScore">0</div>
+            <div class="score-btns">
+                <button class="s-btn minus" onclick="addScore('home',-1)">-1</button>
+                <button class="s-btn minus" onclick="addScore('home',-2)">-2</button>
+                <button class="s-btn minus" onclick="addScore('home',-3)">-3</button>
+                <button class="s-btn" onclick="addScore('home',1)">+1</button>
+                <button class="s-btn" onclick="addScore('home',2)">+2</button>
+                <button class="s-btn" onclick="addScore('home',3)">+3</button>
+            </div>
+            <div class="team-stats">
+                <div class="team-stat">
+                    <div class="team-stat-label">犯规</div>
+                    <div class="team-stat-row">
+                        <button class="team-stat-btn" onclick="changeStat('home','fouls',-1)">-</button>
+                        <span class="team-stat-count" id="homeFouls">0</span>
+                        <button class="team-stat-btn" onclick="changeStat('home','fouls',1)">+</button>
+                    </div>
+                </div>
+                <div class="team-stat">
+                    <div class="team-stat-label">暂停</div>
+                    <div class="team-stat-row">
+                        <button class="team-stat-btn" onclick="changeStat('home','timeouts',-1)">-</button>
+                        <span class="team-stat-count" id="homeTimeouts">0</span>
+                        <button class="team-stat-btn" onclick="changeStat('home','timeouts',1)">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="score-panel away">
+            <input type="text" class="team-input" id="awayName" value="客队" placeholder="队名">
+            <div class="score-num" id="awayScore">0</div>
+            <div class="score-btns">
+                <button class="s-btn minus" onclick="addScore('away',-1)">-1</button>
+                <button class="s-btn minus" onclick="addScore('away',-2)">-2</button>
+                <button class="s-btn minus" onclick="addScore('away',-3)">-3</button>
+                <button class="s-btn" onclick="addScore('away',1)">+1</button>
+                <button class="s-btn" onclick="addScore('away',2)">+2</button>
+                <button class="s-btn" onclick="addScore('away',3)">+3</button>
+            </div>
+            <div class="team-stats">
+                <div class="team-stat">
+                    <div class="team-stat-label">犯规</div>
+                    <div class="team-stat-row">
+                        <button class="team-stat-btn" onclick="changeStat('away','fouls',-1)">-</button>
+                        <span class="team-stat-count" id="awayFouls">0</span>
+                        <button class="team-stat-btn" onclick="changeStat('away','fouls',1)">+</button>
+                    </div>
+                </div>
+                <div class="team-stat">
+                    <div class="team-stat-label">暂停</div>
+                    <div class="team-stat-row">
+                        <button class="team-stat-btn" onclick="changeStat('away','timeouts',-1)">-</button>
+                        <span class="team-stat-count" id="awayTimeouts">0</span>
+                        <button class="team-stat-btn" onclick="changeStat('away','timeouts',1)">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部操作 -->
+    <div class="bottom-bar">
+        <button class="bottom-btn" onclick="resetScores()">重置比分</button>
+        <button class="bottom-btn" onclick="resetAllStats()">重置统计</button>
+        <button class="bottom-btn danger" onclick="resetAll()">全部重置</button>
+    </div>
+
+    <!-- 得分记录 -->
+    <div class="history-area">
+        <div class="history-head">
+            <svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+            得分记录
+        </div>
+        <div class="history-scroll" id="historyList">
+            <div class="h-empty">暂无记录</div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 节结束弹窗 ==================== -->
+<div class="period-end-overlay" id="periodEndOverlay">
+    <div class="period-end-card">
+        <div class="period-end-icon">
+            <svg viewBox="0 0 200 200">
+                <defs>
+                    <radialGradient id="ballGrad2" cx="35%" cy="30%" r="65%">
+                        <stop offset="0%" stop-color="#f5a623"/>
+                        <stop offset="40%" stop-color="#d4820c"/>
+                        <stop offset="80%" stop-color="#a86208"/>
+                        <stop offset="100%" stop-color="#7a4705"/>
+                    </radialGradient>
+                </defs>
+                <circle cx="100" cy="100" r="88" fill="url(#ballGrad2)"/>
+                <path d="M100 12 L100 188" stroke="#4a2800" stroke-width="2.8" opacity="0.5" stroke-linecap="round"/>
+                <path d="M12 100 L188 100" stroke="#4a2800" stroke-width="2.8" opacity="0.5" stroke-linecap="round"/>
+                <path d="M28 100 Q28 38 100 38 Q172 38 172 100" fill="none" stroke="#4a2800" stroke-width="2.8" opacity="0.5" stroke-linecap="round"/>
+                <path d="M28 100 Q28 162 100 162 Q172 162 172 100" fill="none" stroke="#4a2800" stroke-width="2.8" opacity="0.5" stroke-linecap="round"/>
+                <ellipse cx="72" cy="62" rx="22" ry="16" fill="white" opacity="0.15"/>
+                <path d="M65 105 L90 130 L140 75" fill="none" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+            </svg>
+        </div>
+        <div class="period-end-title" id="periodEndTitle">本节结束</div>
+        <div class="period-end-desc" id="periodEndDesc">主队率先达到目标分数！</div>
+        <div class="period-end-scores">
+            <div class="period-end-team">
+                <div class="period-end-team-name" id="peHomeName">主队</div>
+                <div class="period-end-team-score red" id="peHomeScore">0</div>
+            </div>
+            <div class="period-end-vs">VS</div>
+            <div class="period-end-team">
+                <div class="period-end-team-name" id="peAwayName">客队</div>
+                <div class="period-end-team-score blue" id="peAwayScore">0</div>
+            </div>
+        </div>
+        <div class="period-end-btns">
+            <button class="modal-btn secondary" onclick="closePeriodEnd()">查看详情</button>
+            <button class="modal-btn primary" id="nextPeriodBtn" onclick="nextPeriod()">下一节</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ========== 状态 ==========
+    let gameMode = 'official';
+    let timerInterval = null;
+    let timeRemaining = 720;
+    let period = 1;
+    let shotClock = 24;
+    let isRunning = false;
+    let periodScores = { home: [0,0,0,0], away: [0,0,0,0] };
+    let periodEnded = false;
+
+    const scores = { home: 0, away: 0 };
+    const stats = { home: { fouls: 0, timeouts: 0 }, away: { fouls: 0, timeouts: 0 } };
+    const historyList = [];
+
+    // ========== 模式选择 ==========
+    function selectMode(mode) {
+        gameMode = mode;
+        startGame();
+    }
+
+    function startGame() {
+        document.getElementById('modePage').classList.add('hidden');
+        document.getElementById('gamePage').classList.remove('hidden');
+
+        const modeEl = document.getElementById('topBarMode');
+        if (gameMode === 'official') {
+            modeEl.textContent = '正式比赛';
+            modeEl.className = 'top-bar-mode official';
+            timeRemaining = 720;
+            document.getElementById('timerArea').classList.remove('hidden');
+            document.getElementById('periodArea').classList.remove('hidden');
+            document.getElementById('totalScoreArea').classList.add('hidden');
+        } else {
+            modeEl.textContent = '记分比赛';
+            modeEl.className = 'top-bar-mode scoring';
+            timeRemaining = 720;
+            document.getElementById('timerArea').classList.add('hidden');
+            document.getElementById('periodArea').classList.add('hidden');
+            document.getElementById('totalScoreArea').classList.remove('hidden');
+        }
+
+        period = 1;
+        scores.home = 0;
+        scores.away = 0;
+        periodScores = { home: [0,0,0,0], away: [0,0,0,0] };
+        periodEnded = false;
+        updateAllDisplays();
+    }
+
+    function goBack() {
+        pauseTimer();
+        document.getElementById('gamePage').classList.add('hidden');
+        document.getElementById('modePage').classList.remove('hidden');
+        document.getElementById('timerArea').classList.add('hidden');
+        document.getElementById('periodArea').classList.add('hidden');
+        document.getElementById('totalScoreArea').classList.add('hidden');
+    }
+
+    // ========== 计时器 ==========
+    function formatTime(s) {
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+    }
+
+    function updateTimerDisplay() {
+        document.getElementById('timerDisplay').textContent = formatTime(timeRemaining);
+    }
+
+    function startTimer() {
+        if (isRunning || periodEnded) return;
+        isRunning = true;
+        document.getElementById('timerArea').classList.add('timer-running');
+        timerInterval = setInterval(() => {
+            if (timeRemaining > 0) {
+                timeRemaining--;
+                if (shotClock > 0) {
+                    shotClock--;
+                    updateShotClockDisplay();
+                }
+                updateTimerDisplay();
+            } else {
+                pauseTimer();
+                if (gameMode === 'official') {
+                    onPeriodTimeUp();
+                }
+            }
+        }, 1000);
+    }
+
+    function pauseTimer() {
+        isRunning = false;
+        document.getElementById('timerArea').classList.remove('timer-running');
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    }
+
+    function resetTimer() {
+        pauseTimer();
+        timeRemaining = 720;
+        shotClock = 24;
+        updateTimerDisplay();
+        updateShotClockDisplay();
+    }
+
+    function updateShotClockDisplay() {
+        const el = document.getElementById('shotClockDisplay');
+        el.textContent = shotClock;
+        el.className = 'shot-clock-num';
+        if (shotClock <= 5) el.classList.add('danger');
+        else if (shotClock <= 10) el.classList.add('warning');
+    }
+
+    // ========== 节次 ==========
+    function changePeriod(delta) {
+        const newP = period + delta;
+        if (newP < 1 || newP > 4) return;
+        pauseTimer();
+        period = newP;
+        periodEnded = false;
+        timeRemaining = 720;
+        shotClock = 24;
+        scores.home = periodScores.home[period - 1];
+        scores.away = periodScores.away[period - 1];
+        updateAllDisplays();
+    }
+
+    // ========== 得分 ==========
+    function addScore(team, points) {
+        if (periodEnded) return;
+        const newScore = scores[team] + points;
+        if (newScore < 0) return;
+        scores[team] = newScore;
+        periodScores[team][period - 1] = newScore;
+        updateTotalScore();
+
+        const display = document.getElementById(team + 'Score');
+        display.textContent = scores[team];
+        display.classList.remove('score-pop');
+        void display.offsetWidth;
+        display.classList.add('score-pop');
+
+        if (points !== 0) {
+            const teamName = document.getElementById(team + 'Name').value || (team === 'home' ? '主队' : '客队');
+            const sign = points > 0 ? '+' : '';
+            historyList.unshift({
+                time: formatTime(timeRemaining),
+                period: period,
+                text: `${teamName} ${sign}${points}分`
+            });
+            updateHistory();
+        }
+
+    }
+
+    // ========== 统计 ==========
+    function changeStat(team, stat, delta) {
+        const v = stats[team][stat] + delta;
+        if (v < 0) return;
+        stats[team][stat] = v;
+        document.getElementById(team + stat.charAt(0).toUpperCase() + stat.slice(1)).textContent = v;
+    }
+
+    // ========== 记录 ==========
+    function updateHistory() {
+        const el = document.getElementById('historyList');
+        if (historyList.length === 0) {
+            el.innerHTML = '<div class="h-empty">暂无记录</div>';
+            return;
+        }
+        el.innerHTML = historyList.map(h =>
+            `<div class="h-item"><span class="h-time">Q${h.period} ${h.time}</span><span>${h.text}</span></div>`
+        ).join('');
+    }
+
+    // ========== 节结束逻辑 ==========
+    function onScoringPeriodEnd(winTeam) {
+        pauseTimer();
+        periodEnded = true;
+
+        const winName = document.getElementById(winTeam + 'Name').value || (winTeam === 'home' ? '主队' : '客队');
+        document.getElementById('periodEndTitle').textContent = `第 ${period} 节结束`;
+        document.getElementById('periodEndDesc').textContent = `${winName} 赢得本节！`;
+        document.getElementById('peHomeName').textContent = document.getElementById('homeName').value || '主队';
+        document.getElementById('peAwayName').textContent = document.getElementById('awayName').value || '客队';
+        document.getElementById('peHomeScore').textContent = scores.home;
+        document.getElementById('peAwayScore').textContent = scores.away;
+
+        document.getElementById('nextPeriodBtn').textContent = period >= 4 ? '比赛结束' : '下一节';
+        document.getElementById('periodEndOverlay').classList.add('active');
+    }
+
+    function onPeriodTimeUp() {
+        periodEnded = true;
+        document.getElementById('periodEndTitle').textContent = `第 ${period} 节结束`;
+        document.getElementById('periodEndDesc').textContent = '本节时间到！';
+        document.getElementById('peHomeName').textContent = document.getElementById('homeName').value || '主队';
+        document.getElementById('peAwayName').textContent = document.getElementById('awayName').value || '客队';
+        document.getElementById('peHomeScore').textContent = scores.home;
+        document.getElementById('peAwayScore').textContent = scores.away;
+
+        document.getElementById('nextPeriodBtn').textContent = period >= 4 ? '比赛结束' : '下一节';
+        document.getElementById('periodEndOverlay').classList.add('active');
+    }
+
+    function closePeriodEnd() {
+        document.getElementById('periodEndOverlay').classList.remove('active');
+    }
+
+    function nextPeriod() {
+        closePeriodEnd();
+        if (period >= 4) {
+            showGameResult();
+            return;
+        }
+        period++;
+        periodEnded = false;
+        scores.home = periodScores.home[period - 1];
+        scores.away = periodScores.away[period - 1];
+        timeRemaining = 720;
+        shotClock = 24;
+        updateAllDisplays();
+    }
+
+    function showGameResult() {
+        const homeTotal = periodScores.home.reduce((a,b) => a+b, 0);
+        const awayTotal = periodScores.away.reduce((a,b) => a+b, 0);
+        const homeName = document.getElementById('homeName').value || '主队';
+        const awayName = document.getElementById('awayName').value || '客队';
+
+        document.getElementById('periodEndTitle').textContent = '比赛结束';
+        let winner = '';
+        if (homeTotal > awayTotal) winner = `${homeName} 获胜！`;
+        else if (awayTotal > homeTotal) winner = `${awayName} 获胜！`;
+        else winner = '平局！';
+
+        document.getElementById('periodEndDesc').textContent = winner;
+        document.getElementById('peHomeName').textContent = homeName;
+        document.getElementById('peAwayName').textContent = awayName;
+        document.getElementById('peHomeScore').textContent = homeTotal;
+        document.getElementById('peAwayScore').textContent = awayTotal;
+        document.getElementById('nextPeriodBtn').textContent = '返回首页';
+        document.getElementById('nextPeriodBtn').onclick = () => {
+            closePeriodEnd();
+            goBack();
+            document.getElementById('nextPeriodBtn').onclick = nextPeriod;
+        };
+        document.getElementById('periodEndOverlay').classList.add('active');
+    }
+
+    // ========== 重置 ==========
+    function resetScores() {
+        scores.home = 0;
+        scores.away = 0;
+        periodScores.home[period - 1] = 0;
+        periodScores.away[period - 1] = 0;
+        periodEnded = false;
+        document.getElementById('homeScore').textContent = '0';
+        document.getElementById('awayScore').textContent = '0';
+        historyList.length = 0;
+        updateHistory();
+    }
+
+    function resetAllStats() {
+        stats.home.fouls = 0; stats.home.timeouts = 0;
+        stats.away.fouls = 0; stats.away.timeouts = 0;
+        document.getElementById('homeFouls').textContent = '0';
+        document.getElementById('homeTimeouts').textContent = '0';
+        document.getElementById('awayFouls').textContent = '0';
+        document.getElementById('awayTimeouts').textContent = '0';
+    }
+
+    function resetAll() {
+        pauseTimer();
+        period = 1;
+        periodEnded = false;
+        scores.home = 0; scores.away = 0;
+        periodScores = { home: [0,0,0,0], away: [0,0,0,0] };
+        timeRemaining = 720;
+        shotClock = 24;
+        historyList.length = 0;
+        resetAllStats();
+        document.getElementById('homeName').value = '主队';
+        document.getElementById('awayName').value = '客队';
+        updateAllDisplays();
+        updateHistory();
+    }
+
+    // ========== 总比分 ==========
+    function updateTotalScore() {
+        const homeTotal = periodScores.home.reduce((a, b) => a + b, 0);
+        const awayTotal = periodScores.away.reduce((a, b) => a + b, 0);
+        document.getElementById('tsHomeScore').textContent = homeTotal;
+        document.getElementById('tsAwayScore').textContent = awayTotal;
+        document.getElementById('tsHomeName').textContent = document.getElementById('homeName').value || '主队';
+        document.getElementById('tsAwayName').textContent = document.getElementById('awayName').value || '客队';
+    }
+
+    // ========== 更新显示 ==========
+    function updateAllDisplays() {
+        document.getElementById('homeScore').textContent = scores.home;
+        document.getElementById('awayScore').textContent = scores.away;
+        document.getElementById('periodDisplay').textContent = period;
+        updateTimerDisplay();
+        updateShotClockDisplay();
+        updateTotalScore();
+    }
+</script>
+</body>
+</html>
